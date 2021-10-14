@@ -1,9 +1,14 @@
 #include "CharacterMaster.h"
 #include "Camera/CameraComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Net/UnrealNetwork.h"
 
 ACharacterMaster::ACharacterMaster()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	SprintSpeed = 600;
+	WalkSpeed = 180;
+	bIsSprinting = false;
 
 	ThirdPersonMeshComponent = GetMesh();
 	
@@ -15,6 +20,12 @@ ACharacterMaster::ACharacterMaster()
 	
 	TorsoMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("TorsoMeshComponent"));
 	TorsoMeshComponent->SetupAttachment(RootComponent);
+}
+
+void ACharacterMaster::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ACharacterMaster, bIsSprinting);
 }
 
 void ACharacterMaster::BeginPlay()
@@ -30,6 +41,8 @@ void ACharacterMaster::Tick(float DeltaTime)
 void ACharacterMaster::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
+	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &ACharacterMaster::Client_StartSprint);
+	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &ACharacterMaster::Client_StopSprint);
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 	PlayerInputComponent->BindAxis("MoveForward", this, &ACharacterMaster::MoveForward);
@@ -48,6 +61,11 @@ void ACharacterMaster::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 void ACharacterMaster::MoveForward(float Value)
 {
+	if(bIsSprinting)
+	{
+		if(Value <= 0) Server_StopSprint();
+		else Server_StartSprint();
+	}
 	AddMovementInput(GetActorForwardVector(), Value);
 }
 
@@ -66,5 +84,58 @@ void ACharacterMaster::LookUp(float Value)
 	AddControllerPitchInput(Value);
 }
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////--- Server Actions ---//////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+void ACharacterMaster::Server_StartSprint_Implementation()
+{
+	if(GetLocalRole() == ROLE_AutonomousProxy) return;
+	StartSprint();
+}
+
+bool ACharacterMaster::Server_StartSprint_Validate()
+{
+	return true;
+}
+
+void ACharacterMaster::Client_StartSprint()
+{
+	StartSprint();
+	Server_StartSprint();
+}
+
+void ACharacterMaster::StartSprint()
+{
+	bIsSprinting = true;
+	UCharacterMovementComponent* CharacterMovementComponent = GetCharacterMovement();
+	if(CharacterMovementComponent) CharacterMovementComponent->MaxWalkSpeed = SprintSpeed;
+}
+
+void ACharacterMaster::Server_StopSprint_Implementation()
+{
+	if(GetLocalRole() == ROLE_AutonomousProxy) return;
+	StopSprint();
+}
+
+bool ACharacterMaster::Server_StopSprint_Validate()
+{
+	return true;
+}
+
+void ACharacterMaster::Client_StopSprint()
+{
+	StopSprint();
+	Server_StopSprint();
+}
+
+void ACharacterMaster::StopSprint()
+{
+	bIsSprinting = false;
+	UCharacterMovementComponent* CharacterMovementComponent = GetCharacterMovement();
+	if(CharacterMovementComponent) CharacterMovementComponent->MaxWalkSpeed = WalkSpeed;
+}
 
 //UE_LOG(LogTemp, Warning, TEXT("Turn"));

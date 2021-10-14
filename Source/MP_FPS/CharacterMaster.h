@@ -22,6 +22,16 @@ protected:
 	void Turn(float Value);
 	void LookUp(float Value);
 
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_StartSprint();
+	void Client_StartSprint();
+	void StartSprint();
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_StopSprint();
+	void Client_StopSprint();
+	void StopSprint();
+
 private:
 	UPROPERTY(EditAnywhere)
 	UCameraComponent* Camera;
@@ -34,4 +44,13 @@ private:
 
 	UPROPERTY(EditAnywhere)
 	USkeletalMeshComponent* TorsoMeshComponent;
+
+	UPROPERTY(EditAnywhere)
+	float WalkSpeed;
+
+	UPROPERTY(EditAnywhere)
+	float SprintSpeed;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))
+	bool bIsSprinting;
 };
