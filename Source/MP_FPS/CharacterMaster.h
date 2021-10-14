@@ -4,6 +4,7 @@
 #include "CharacterMaster.generated.h"
 
 class UCameraComponent;
+class AWeaponMaster;
 
 UCLASS()
 class MP_FPS_API ACharacterMaster : public ACharacter
@@ -32,6 +33,8 @@ protected:
 	void Client_StopSprint();
 	void StopSprint();
 
+	void SpawnWeapons();
+
 private:
 	UPROPERTY(EditAnywhere)
 	UCameraComponent* Camera;
@@ -44,6 +47,12 @@ private:
 
 	UPROPERTY(EditAnywhere)
 	USkeletalMeshComponent* TorsoMeshComponent;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<AWeaponMaster> Class_WeaponMaster;
+
+	UPROPERTY(EditAnywhere, Replicated)
+	AWeaponMaster* CurrentWeapon;
 
 	UPROPERTY(EditAnywhere)
 	float WalkSpeed;

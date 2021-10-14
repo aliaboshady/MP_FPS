@@ -1,4 +1,5 @@
 #include "CharacterMaster.h"
+#include "WeaponMaster.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Net/UnrealNetwork.h"
@@ -26,11 +27,13 @@ void ACharacterMaster::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ACharacterMaster, bIsSprinting);
+	DOREPLIFETIME(ACharacterMaster, CurrentWeapon);
 }
 
 void ACharacterMaster::BeginPlay()
 {
 	Super::BeginPlay();
+	SpawnWeapons();
 }
 
 void ACharacterMaster::Tick(float DeltaTime)
@@ -136,6 +139,29 @@ void ACharacterMaster::StopSprint()
 	bIsSprinting = false;
 	UCharacterMovementComponent* CharacterMovementComponent = GetCharacterMovement();
 	if(CharacterMovementComponent) CharacterMovementComponent->MaxWalkSpeed = WalkSpeed;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////--- Functions ---///////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+void ACharacterMaster::SpawnWeapons()
+{
+	if(Class_WeaponMaster && HasAuthority())
+	{
+		FTransform SocketTransform = ArmsMeshComponent->GetSocketTransform(FName("WeaponSocket"));
+		FActorSpawnParameters SpawnParameters;
+		SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		CurrentWeapon = Cast<AWeaponMaster>(GetWorld()->SpawnActor(Class_WeaponMaster, &SocketTransform, SpawnParameters));
+		CurrentWeapon->SetOwner(this);
+		CurrentWeapon->SetInstigator(this);
+
+		FAttachmentTransformRules AttachmentRules =  FAttachmentTransformRules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld, true);
+		CurrentWeapon->SK_FP_WeaponMesh->AttachToComponent(ArmsMeshComponent, AttachmentRules, FName("WeaponSocket"));
+		CurrentWeapon->SK_TP_WeaponMesh->AttachToComponent(ThirdPersonMeshComponent, AttachmentRules, FName("WeaponSocket"));
+	}
 }
 
 //UE_LOG(LogTemp, Warning, TEXT("Turn"));
