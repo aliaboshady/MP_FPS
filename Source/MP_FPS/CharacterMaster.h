@@ -16,6 +16,9 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	UPROPERTY(EditAnywhere)
+	UCameraComponent* Camera;
+
 protected:
 	virtual void BeginPlay() override;
 	void MoveForward(float Value);
@@ -33,12 +36,19 @@ protected:
 	void Client_StopSprint();
 	void StopSprint();
 
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_StartFireWeapon();
+	void Client_StartFireWeapon();
+	void StartFireWeapon();
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_StopFireWeapon();
+	void Client_StopFireWeapon();
+	void StopFireWeapon();
+
 	void SpawnWeapons();
 
 private:
-	UPROPERTY(EditAnywhere)
-	UCameraComponent* Camera;
-
 	UPROPERTY(EditAnywhere)
 	USkeletalMeshComponent* ThirdPersonMeshComponent;
 

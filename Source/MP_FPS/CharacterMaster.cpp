@@ -48,6 +48,8 @@ void ACharacterMaster::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &ACharacterMaster::Client_StopSprint);
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+	PlayerInputComponent->BindAction("FireWeapon", IE_Pressed, this, &ACharacterMaster::Client_StartFireWeapon);
+	PlayerInputComponent->BindAction("FireWeapon", IE_Released, this, &ACharacterMaster::Client_StopFireWeapon);
 	PlayerInputComponent->BindAxis("MoveForward", this, &ACharacterMaster::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &ACharacterMaster::MoveRight);
 	PlayerInputComponent->BindAxis("Turn", this, &ACharacterMaster::Turn);
@@ -66,8 +68,8 @@ void ACharacterMaster::MoveForward(float Value)
 {
 	if(bIsSprinting)
 	{
-		if(Value <= 0) Server_StopSprint();
-		else Server_StartSprint();
+		if(Value <= 0) Client_StopSprint();
+		else Client_StartSprint();
 	}
 	AddMovementInput(GetActorForwardVector(), Value);
 }
@@ -141,10 +143,56 @@ void ACharacterMaster::StopSprint()
 	if(CharacterMovementComponent) CharacterMovementComponent->MaxWalkSpeed = WalkSpeed;
 }
 
+void ACharacterMaster::Server_StartFireWeapon_Implementation()
+{
+	if(GetLocalRole() == ROLE_AutonomousProxy) return;
+	StartFireWeapon();
+}
+
+bool ACharacterMaster::Server_StartFireWeapon_Validate()
+{
+	return true;
+}
+
+void ACharacterMaster::Client_StartFireWeapon()
+{
+	StartFireWeapon();
+	Server_StartFireWeapon();
+}
+
+void ACharacterMaster::StartFireWeapon()
+{
+	//UE_LOG(LogTemp, Warning, TEXT("Start Fire"));
+	if(CurrentWeapon) CurrentWeapon->OnWeaponFire();
+}
+
+void ACharacterMaster::Server_StopFireWeapon_Implementation()
+{
+	if(GetLocalRole() == ROLE_AutonomousProxy) return;
+	StopFireWeapon();
+}
+
+bool ACharacterMaster::Server_StopFireWeapon_Validate()
+{
+	return true;
+}
+
+void ACharacterMaster::Client_StopFireWeapon()
+{
+	StopFireWeapon();
+	Server_StopFireWeapon();
+}
+
+void ACharacterMaster::StopFireWeapon()
+{
+	//UE_LOG(LogTemp, Warning, TEXT("Stop Fire"));
+	if(CurrentWeapon) CurrentWeapon->OffWeaponFire();
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////--- Functions ---///////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 
 void ACharacterMaster::SpawnWeapons()
@@ -154,9 +202,11 @@ void ACharacterMaster::SpawnWeapons()
 		FTransform SocketTransform = ArmsMeshComponent->GetSocketTransform(FName("WeaponSocket"));
 		FActorSpawnParameters SpawnParameters;
 		SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		
 		CurrentWeapon = Cast<AWeaponMaster>(GetWorld()->SpawnActor(Class_WeaponMaster, &SocketTransform, SpawnParameters));
 		CurrentWeapon->SetOwner(this);
 		CurrentWeapon->SetInstigator(this);
+		CurrentWeapon->CharacterMaster = this;
 
 		FAttachmentTransformRules AttachmentRules =  FAttachmentTransformRules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld, true);
 		CurrentWeapon->SK_FP_WeaponMesh->AttachToComponent(ArmsMeshComponent, AttachmentRules, FName("WeaponSocket"));
